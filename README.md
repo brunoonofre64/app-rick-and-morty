@@ -220,12 +220,6 @@ main.dart
 
 ---
 
-## 🔐 Segurança & privacidade
-- Não armazenar dados sensíveis (não há chaves neste projeto).
-- Evitar logs com payloads grandes em produção.
-
----
-
 ## 🧭 Roadmap sugerido
 - [ ] Tela de busca/filtro avançado
 - [ ] Paginação com *infinite scroll*
