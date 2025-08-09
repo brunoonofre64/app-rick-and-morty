@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api_client.dart';
 import '../../../core/providers.dart';
@@ -17,19 +18,41 @@ class CharacterService {
     String? type,
   }) async {
     final query = <String, dynamic>{'page': page};
-    if (name?.isNotEmpty == true) query['name'] = name;
-    if (status?.isNotEmpty == true) query['status'] = status;
-    if (gender?.isNotEmpty == true) query['gender'] = gender;
-    if (species?.isNotEmpty == true) query['species'] = species;
-    if (type?.isNotEmpty == true) query['type'] = type;
 
-    final res = await _client.get<Map<String, dynamic>>('/character', query: query);
-    final data = res.data!;
-    final info = PageInfo.fromJson(data['info']);
-    final results = (data['results'] as List<dynamic>)
-        .map((e) => Character.fromJson(e as Map<String, dynamic>))
-        .toList();
-    return PaginatedResponse(info: info, results: results);
+    if (name != null && name.trim().isNotEmpty) {
+      query['name'] = name.trim();
+    }
+    if (status != null && status.isNotEmpty) {
+      query['status'] = status.toLowerCase();
+    }
+    if (gender != null && gender.isNotEmpty) {
+      query['gender'] = gender.toLowerCase();
+    }
+    if (species != null && species.isNotEmpty) {
+      query['species'] = species;
+    }
+    if (type != null && type.isNotEmpty) {
+      query['type'] = type;
+    }
+
+    try {
+      final res =
+          await _client.get<Map<String, dynamic>>('/character', query: query);
+      final data = res.data!;
+      final info = PageInfo.fromJson(data['info']);
+      final results = (data['results'] as List<dynamic>)
+          .map((e) => Character.fromJson(e as Map<String, dynamic>))
+          .toList();
+      return PaginatedResponse(info: info, results: results);
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        return PaginatedResponse(
+          info: const PageInfo(count: 0, pages: 0, next: null, prev: null),
+          results: const <Character>[],
+        );
+      }
+      rethrow;
+    }
   }
 
   Future<Character> fetchCharacter(int id) async {
@@ -46,5 +69,6 @@ class CharacterService {
   }
 }
 
-final characterServiceProvider =
-    Provider<CharacterService>((ref) => CharacterService(ref.read(apiClientProvider)));
+final characterServiceProvider = Provider<CharacterService>(
+  (ref) => CharacterService(ref.read(apiClientProvider)),
+);
