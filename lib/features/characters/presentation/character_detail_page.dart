@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/utils.dart';
 import '../../../widgets/error_retry.dart';
 import '../../../widgets/loading.dart';
-import '../../../widgets/app_bar_custom.dart';
 
 import '../data/character_model.dart';
 import '../data/character_service.dart';
@@ -36,7 +35,7 @@ class CharacterDetailPage extends ConsumerWidget {
     final state = ref.watch(characterDetailProvider(id));
 
     return Scaffold(
-      appBar: AppBarCustom.detail(
+      appBar: _DetailLargeAppBar(
         onBack: () => Navigator.of(context).maybePop(),
         onProfile: () {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -68,6 +67,88 @@ class CharacterDetailPage extends ConsumerWidget {
   }
 }
 
+class _DetailLargeAppBar extends StatelessWidget implements PreferredSizeWidget {
+  const _DetailLargeAppBar({
+    this.onBack,
+    this.onProfile,
+  });
+
+  final VoidCallback? onBack;
+  final VoidCallback? onProfile;
+
+  @override
+  Size get preferredSize => const Size.fromHeight(56 + 75 + 1);
+
+  @override
+  Widget build(BuildContext context) {
+    const surface = Color(0xFF1C1B1F);
+    const onSurface = Color(0xFFE6E1E5);
+    const onSurfaceVariant = Color(0xFFCAC4D0);
+
+    return Material(
+      color: surface,
+      elevation: 0,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            height: 56,
+            child: Row(
+              children: [
+                IconButton(
+                  tooltip: 'Back',
+                  icon: const Icon(Icons.arrow_back),
+                  color: onSurface,
+                  onPressed: onBack,
+                ),
+                const Spacer(),
+                IconButton(
+                  tooltip: 'Profile',
+                  icon: const Icon(Icons.account_circle),
+                  color: onSurfaceVariant,
+                  onPressed: onProfile,
+                ),
+              ],
+            ),
+          ),
+          SizedBox(
+            height: 75,
+            width: double.infinity,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Image.asset(
+                  'assets/images/logo.png',
+                  width: 84,
+                  height: 36,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => const Icon(
+                    Icons.image_not_supported_outlined,
+                    size: 24,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'RICK AND MORTY API',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Colors.white,
+                        fontSize: 14.5,
+                        letterSpacing: 2.4,
+                        fontWeight: FontWeight.w400,
+                      ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, color: Colors.white12),
+        ],
+      ),
+    );
+  }
+}
+
 class _DetailCardJoined extends StatelessWidget {
   const _DetailCardJoined({
     required this.character,
@@ -80,7 +161,7 @@ class _DetailCardJoined extends StatelessWidget {
   Color _statusColor(String s) {
     switch (s.toLowerCase()) {
       case 'alive':
-        return const Color(0xFF25D366); 
+        return const Color(0xFF25D366);
       case 'dead':
         return const Color(0xFFD53C2E);
       default:
@@ -99,7 +180,6 @@ class _DetailCardJoined extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-
             SizedBox(
               height: 160,
               width: double.infinity,
@@ -120,7 +200,6 @@ class _DetailCardJoined extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-
                   Text(
                     character.name,
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
@@ -129,7 +208,6 @@ class _DetailCardJoined extends StatelessWidget {
                         ),
                   ),
                   const SizedBox(height: 12),
-
                   Row(
                     children: [
                       Container(

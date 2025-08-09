@@ -32,54 +32,66 @@ class _LocationsPageState extends ConsumerState<LocationsPage> {
     super.dispose();
   }
 
+  void _apply() {
+    ref
+        .read(locationsControllerProvider.notifier)
+        .refresh(name: _nameCtrl.text.trim());
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(locationsControllerProvider);
 
     return SafeArea(
-      child: Column(children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-          child: Row(children: [
-            Expanded(
-              child: TextField(
-                controller: _nameCtrl,
-                decoration: const InputDecoration(hintText: 'Filter by name'),
-                onSubmitted: (_) => ref.read(locationsControllerProvider.notifier)
-                  .refresh(name: _nameCtrl.text.trim()),
-              ),
-            ),
-            const SizedBox(width: 8),
-            FilledButton(
-              onPressed: () => ref.read(locationsControllerProvider.notifier)
-                  .refresh(name: _nameCtrl.text.trim()),
-              child: const Text('Apply'),
-            ),
-          ]),
-        ),
-        Expanded(
-          child: state.when(
-            loading: () => const Center(child: Loading()),
-            error: (e, _) => ErrorRetry(message: e.toString(), onRetry: () {
-              ref.read(locationsControllerProvider.notifier).refresh();
-            }),
-            data: (items) => RefreshIndicator(
-              onRefresh: () => ref.read(locationsControllerProvider.notifier).refresh(),
-              child: ListView.separated(
-                controller: _scroll,
-                padding: const EdgeInsets.all(16),
-                itemBuilder: (_, i) => ListTile(
-                  title: Text(items[i].name),
-                  subtitle: Text('${items[i].type} • ${items[i].dimension}'),
-                  onTap: () => context.push('/locations/detail/${items[i].id}'),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            child: TextField(
+              controller: _nameCtrl,
+              onSubmitted: (_) => _apply(),
+              decoration: InputDecoration(
+                hintText: 'Filter by name',
+                prefixIcon: null,
+                suffixIcon: IconButton(
+                  onPressed: _apply,
+                  icon: const Icon(Icons.search, color: Colors.white70),
+                  tooltip: 'Search',
                 ),
-                separatorBuilder: (_, __) => const Divider(height: 1),
-                itemCount: items.length,
+                border: const UnderlineInputBorder(),
               ),
             ),
           ),
-        ),
-      ]),
+
+          Expanded(
+            child: state.when(
+              loading: () => const Center(child: Loading()),
+              error: (e, _) => ErrorRetry(
+                message: e.toString(),
+                onRetry: () {
+                  ref.read(locationsControllerProvider.notifier).refresh();
+                },
+              ),
+              data: (items) => RefreshIndicator(
+                onRefresh: () =>
+                    ref.read(locationsControllerProvider.notifier).refresh(),
+                child: ListView.separated(
+                  controller: _scroll,
+                  padding: const EdgeInsets.all(16),
+                  itemBuilder: (_, i) => ListTile(
+                    title: Text(items[i].name),
+                    subtitle: Text('${items[i].type} • ${items[i].dimension}'),
+                    onTap: () =>
+                        context.push('/locations/detail/${items[i].id}'),
+                  ),
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemCount: items.length,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
