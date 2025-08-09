@@ -62,13 +62,19 @@ class _CharactersPageState extends ConsumerState<CharactersPage> {
     final state = ref.watch(charactersControllerProvider);
 
     return Scaffold(
-      appBar: AppBarCustom.home(
+      appBar: AppBarCustom.homeLarge(
+        onMenu: () {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Menu tapped')),
+          );
+        },
         onProfile: () {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Profile tapped')),
           );
         },
       ),
+
       body: SafeArea(
         child: Column(
           children: [
