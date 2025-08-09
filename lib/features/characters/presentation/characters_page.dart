@@ -15,7 +15,7 @@ class CharactersPage extends ConsumerStatefulWidget {
 }
 
 class _CharactersPageState extends ConsumerState<CharactersPage> {
-  final _scroll = ScrollController();
+  final _innerScroll = ScrollController();
   final _nameCtrl = TextEditingController();
   String _status = '';
   String _gender = '';
@@ -23,8 +23,9 @@ class _CharactersPageState extends ConsumerState<CharactersPage> {
   @override
   void initState() {
     super.initState();
-    _scroll.addListener(() {
-      if (_scroll.position.pixels > _scroll.position.maxScrollExtent - 200) {
+    _innerScroll.addListener(() {
+      if (_innerScroll.position.pixels >
+          _innerScroll.position.maxScrollExtent - 200) {
         ref.read(charactersControllerProvider.notifier).loadMore();
       }
     });
@@ -32,7 +33,7 @@ class _CharactersPageState extends ConsumerState<CharactersPage> {
 
   @override
   void dispose() {
-    _scroll.dispose();
+    _innerScroll.dispose();
     _nameCtrl.dispose();
     super.dispose();
   }
@@ -74,103 +75,48 @@ class _CharactersPageState extends ConsumerState<CharactersPage> {
           );
         },
       ),
-
       body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-              child: TextField(
-                controller: _nameCtrl,
-                onSubmitted: (_) => _apply(),
-                decoration: InputDecoration(
-                  hintText: 'Search by name',
-                  prefixIcon: null,
-                  suffixIcon: IconButton(
-                    onPressed: _apply,
-                    icon: const Icon(Icons.search, color: Colors.white70),
-                    tooltip: 'Search',
-                  ),
-                  border: const UnderlineInputBorder(),
+        child: state.when(
+          loading: () => const Center(child: Loading()),
+          error: (e, _) => ErrorRetry(
+            message: e.toString(),
+            onRetry: () {
+              ref.read(charactersControllerProvider.notifier).refresh();
+            },
+          ),
+          data: (items) => NestedScrollView(
+            controller: _innerScroll,
+            headerSliverBuilder: (context, innerBoxIsScrolled) => [
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: _SearchFiltersHeaderDelegate(
+                  nameController: _nameCtrl,
+                  status: _status,
+                  gender: _gender,
+                  onSubmit: _apply,
+                  onSelectStatus: _setStatus,
+                  onSelectGender: _setGender,
+                  backgroundColor: Theme.of(context).colorScheme.surface,
+                  showElevation: innerBoxIsScrolled,
                 ),
               ),
-            ),
-
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              child: Row(children: [
-                _Choice(
-                  label: 'Any status',
-                  selected: _status.isEmpty,
-                  onTap: () => _setStatus(''),
+            ],
+            body: RefreshIndicator(
+              onRefresh: () =>
+                  ref.read(charactersControllerProvider.notifier).refresh(),
+              child: ListView.separated(
+                primary: false,
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                itemBuilder: (_, i) => CharacterCard(
+                  character: items[i],
+                  onTap: () =>
+                      context.push('/characters/detail/${items[i].id}'),
                 ),
-                _Choice(
-                  label: 'Alive',
-                  selected: _status == 'alive',
-                  onTap: () => _setStatus('alive'),
-                ),
-                _Choice(
-                  label: 'Dead',
-                  selected: _status == 'dead',
-                  onTap: () => _setStatus('dead'),
-                ),
-                _Choice(
-                  label: 'Unknown',
-                  selected: _status == 'unknown',
-                  onTap: () => _setStatus('unknown'),
-                ),
-                const SizedBox(width: 12),
-                _Choice(
-                  label: 'Any gender',
-                  selected: _gender.isEmpty,
-                  onTap: () => _setGender(''),
-                ),
-                _Choice(
-                  label: 'Male',
-                  selected: _gender == 'male',
-                  onTap: () => _setGender('male'),
-                ),
-                _Choice(
-                  label: 'Female',
-                  selected: _gender == 'female',
-                  onTap: () => _setGender('female'),
-                ),
-                _Choice(
-                  label: 'Genderless',
-                  selected: _gender == 'genderless',
-                  onTap: () => _setGender('genderless'),
-                ),
-              ]),
-            ),
-
-            Expanded(
-              child: state.when(
-                loading: () => const Center(child: Loading()),
-                error: (e, _) => ErrorRetry(
-                  message: e.toString(),
-                  onRetry: () {
-                    ref.read(charactersControllerProvider.notifier).refresh();
-                  },
-                ),
-                data: (items) => RefreshIndicator(
-                  onRefresh: () =>
-                      ref.read(charactersControllerProvider.notifier).refresh(),
-                  child: ListView.separated(
-                    controller: _scroll,
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                    itemBuilder: (_, i) => CharacterCard(
-                      character: items[i],
-                      onTap: () =>
-                          context.push('/characters/detail/${items[i].id}'),
-                    ),
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
-                    itemCount: items.length,
-                  ),
-                ),
+                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                itemCount: items.length,
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -197,4 +143,121 @@ class _Choice extends StatelessWidget {
           onSelected: (_) => onTap(),
         ),
       );
+}
+
+class _SearchFiltersHeaderDelegate extends SliverPersistentHeaderDelegate {
+  _SearchFiltersHeaderDelegate({
+    required this.nameController,
+    required this.status,
+    required this.gender,
+    required this.onSubmit,
+    required this.onSelectStatus,
+    required this.onSelectGender,
+    required this.backgroundColor,
+    required this.showElevation,
+  });
+
+  final TextEditingController nameController;
+  final String status;
+  final String gender;
+  final VoidCallback onSubmit;
+  final ValueChanged<String> onSelectStatus;
+  final ValueChanged<String> onSelectGender;
+  final Color backgroundColor;
+  final bool showElevation;
+
+  static const double _height = 126;
+
+  @override
+  double get minExtent => _height;
+  @override
+  double get maxExtent => _height;
+
+  @override
+  Widget build(
+      BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return Material(
+      color: backgroundColor,
+      elevation: showElevation ? 2 : 0,
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            child: TextField(
+              controller: nameController,
+              onSubmitted: (_) => onSubmit(),
+              decoration: InputDecoration(
+                hintText: 'Search by name',
+                prefixIcon: null,
+                suffixIcon: IconButton(
+                  onPressed: onSubmit,
+                  icon: const Icon(Icons.search, color: Colors.white70),
+                  tooltip: 'Search',
+                ),
+                border: const UnderlineInputBorder(),
+              ),
+            ),
+          ),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Row(
+              children: [
+                _Choice(
+                  label: 'Any status',
+                  selected: status.isEmpty,
+                  onTap: () => onSelectStatus(''),
+                ),
+                _Choice(
+                  label: 'Alive',
+                  selected: status == 'alive',
+                  onTap: () => onSelectStatus('alive'),
+                ),
+                _Choice(
+                  label: 'Dead',
+                  selected: status == 'dead',
+                  onTap: () => onSelectStatus('dead'),
+                ),
+                _Choice(
+                  label: 'Unknown',
+                  selected: status == 'unknown',
+                  onTap: () => onSelectStatus('unknown'),
+                ),
+                const SizedBox(width: 12),
+                _Choice(
+                  label: 'Any gender',
+                  selected: gender.isEmpty,
+                  onTap: () => onSelectGender(''),
+                ),
+                _Choice(
+                  label: 'Male',
+                  selected: gender == 'male',
+                  onTap: () => onSelectGender('male'),
+                ),
+                _Choice(
+                  label: 'Female',
+                  selected: gender == 'female',
+                  onTap: () => onSelectGender('female'),
+                ),
+                _Choice(
+                  label: 'Genderless',
+                  selected: gender == 'genderless',
+                  onTap: () => onSelectGender('genderless'),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant _SearchFiltersHeaderDelegate oldDelegate) {
+    return oldDelegate.nameController != nameController ||
+        oldDelegate.status != status ||
+        oldDelegate.gender != gender ||
+        oldDelegate.showElevation != showElevation ||
+        oldDelegate.backgroundColor != backgroundColor;
+  }
 }
