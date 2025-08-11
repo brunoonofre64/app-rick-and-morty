@@ -8,7 +8,7 @@ Rick and Morty – REST client em Flutter. Este documento explica visão geral, 
 ---
 
 ## 📦 Visão geral
-- **Nome do pacote**: `rnm_app`
+- **Nome do pacote**: `desafio_rick_and_morty`
 - **Descrição**: Cliente REST da API pública [Rick and Morty](https://rickandmortyapi.com/) com Flutter.
 - **Gerenciador**: `flutter`/`pub`
 - **Estado de publicação**: não publicável ( `publish_to: none` )
@@ -33,12 +33,6 @@ Rick and Morty – REST client em Flutter. Este documento explica visão geral, 
 ## 🛠️ Requisitos do ambiente
 
 > **SDK Dart**: `>= 3.7.0 < 4.0.0` (já incluso quando você instala o Flutter compatível)
-
-### Versões recomendadas (agosto/2025)
-- **Flutter**: 3.22.x ou superior compatível com **Dart 3.7**
-- **Android**: Android Studio Giraffe+ com **Android SDK 34** (ou superior) e **Java 17** para toolchain
-- **iOS (opcional)**: Xcode 15+; macOS com CocoaPods (`gem install cocoapods`)
-- **Web (opcional)**: Chrome atualizado
 
 ### Checagens rápidas
 ```bash
