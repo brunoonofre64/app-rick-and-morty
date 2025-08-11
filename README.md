@@ -92,44 +92,102 @@ flutter pub get
 
 ---
 
-## 🧭 Arquitetura & organização
 
-A app utiliza uma arquitetura enxuta com separação por camadas e features:
+# Arquitetura & Design
 
-- **core/**: utilidades, classes base (ex.: cliente HTTP `dio`, mappers, helpers)
-- **features/**: cada domínio (characters, episodes, locations) agrupa:
-  - `data/` (models, services, DTOs)
-  - `presentation/` (views/widgets)
-  - `controllers/` (providers Riverpod/StateNotifiers)
-- **routing/**: configuração do `go_router` (rotas nomeadas, guards, etc.)
+> Documento de referência rápida para entender a organização do código, responsabilidades de cada pasta e como evoluir o projeto com segurança.
 
-### Fluxo (alto nível)
-1. UI dispara uma ação (ex.: abrir lista de personagens).
-2. Controller/Provider aciona **Service** da feature.
-3. Service usa **Dio** (via `core/api_client`) para chamar a API REST.
-4. Resposta JSON → **Model.fromJson**.
-5. Provider expõe estado (loading/data/error) para a UI.
+## Visão Geral
 
-### Convenções
-- **Riverpod** para estado (providers escopados por feature).
-- **GoRouter** com rotas declarativas.
-- **Dio** com `BaseOptions` (timeouts, baseUrl, headers `Accept: application/json`).
-- **cached_network_image** para imagens de personagens/locais/episódios.
+O projeto segue um **design em camadas por feature (Feature-First)**, organizado por domínio (`characters`, `episodes`, `locations`). Cada feature contém:
+- **data**: modelos e serviços (acesso à API / repositórios).
+- **presentation**: widgets de UI e controladores/estado.
+
+Componentes **compartilhados** ficam em `core/` (infraestrutura reutilizável), `router/` (navegação) e `widgets/` (UI genérica).
+
+```
+lib/
+├─ app.dart                 # Raiz do app (Theme, MaterialApp, ProviderScope, etc.)
+├─ main.dart                # Bootstrap do app (runApp)
+├─ core/                    # Infra, utilitários e tipos base
+├─ features/                # Domínios do app (feature-first)
+├─ router/                  # Rotas e navegação
+└─ widgets/                 # Widgets compartilhados
+```
+
+### Objetivo do design
+- **Manutenibilidade**: cada domínio é isolado (baixa dependência entre features).
+- **Reutilização**: código “agnóstico de domínio” vive em `core/` e `widgets/`.
+- **Testabilidade**: serviços desacoplados do UI; controladores expõem estado previsível.
+- **Escalabilidade**: adicionar nova feature repete o mesmo padrão (model → service → controller → page).
 
 ---
 
-## 🔧 Comandos úteis de desenvolvimento
-```bash
-# atualizar dependências dentro das restrições do pubspec
-flutter pub get
-flutter pub upgrade --major-versions   # (use com cuidado)
+## Pastas e Responsabilidades
 
-# formatar e analisar
-dart format .
-dart analyze
+### `core/`
+- `api_client.dart`: **Gateway HTTP** central. Responsável por:
+  - Base URL, cabeçalhos, timeouts, serialização/parse de JSON.
+  - Tratar erros e normalizar respostas.
+- `paginated_response.dart`: tipo utilitário para **respostas paginadas** (ex.: `info { count, pages, next, prev }` e `results`).
+- `providers.dart`: **injeção de dependência/estado** (ex.: `Provider`/`Riverpod`) para disponibilizar `ApiClient`, serviços e controladores ao app.
+- `result.dart`: tipo somatório para **fluxo feliz/erro** (ex.: `Success<T>`/`Failure<E>`). Facilita tratamento uniforme de erros.
+- `utils.dart`: funções utilitárias (formatação, mapeamentos, helpers de rede, etc.).
 
+**Benefícios**: um único lugar para infraestrutura (trocar client HTTP, logging ou autenticação não rompe as features).
 
+---
+
+### `features/` (Feature-First)
+Cada domínio segue um **mini-MVC enxuto**: *Model* (data), *Service* (data source/regras), *Controller* (estado da tela), *Page/Widgets* (UI).
+
+#### `features/characters/`
+- `data/character_model.dart`: mapeia o JSON da API → objetos de domínio.
+- `data/character_service.dart`: consulta endpoints (lista, detalhes, filtros) e retorna `Result`/`PaginatedResponse`.
+- `presentation/characters_controller.dart`: **orquestra a tela** (carregar, paginar, filtrar, tratar erro/loading).
+- `presentation/characters_page.dart`: tela de listagem; consome o controller.
+- `presentation/character_card.dart`: widget de item.
+- `presentation/character_detail_page.dart`: tela de detalhes; carrega um ID e mostra o modelo.
+
+#### `features/episodes/` e `features/locations/`
+Mesma lógica e papéis dos arquivos equivalentes acima, cada qual para seu domínio.
+
+**Vantagem**: a equipe navega rapidamente; padrões repetíveis reduzem curva de aprendizado e bugs.
+
+---
+
+### `router/`
+- `app_router.dart`: declara rotas nomeadas/typed, argumentos e *guards* (se houver).
+- Centraliza navegação **declarativa** (fácil manutenção e *deep links*).
+
+---
+
+### `widgets/` (UI compartilhada)
+- `app_bar_custom.dart`: AppBar reutilizável (títulos, ações padrão).
+- `error_retry.dart`: estado de erro com ação de “tentar novamente” padronizada.
+- `loading.dart`: indicador de carregamento padrão.
+  
+Esses componentes mantêm **consistência visual** e reduzem duplicação.
+
+---
+
+## Fluxo de Dados (request → UI)
+
+```mermaid
+flowchart LR
+    UI[Tela / Widget] --> Ctl[Controlador]
+    Ctl --> Svc[Serviço]
+    Svc --> Api[Cliente API]
+    Api -->|HTTP| Remote[(API Rick and Morty)]
+    Remote --> Api
+    Api -->|"JSON → Modelo"| Svc
+    Svc -->|"Resultado / Falha"| Ctl
+    Ctl -->|"Estado (carregando / sucesso / erro)"| UI
 ```
+
+- **Controller** expõe estados imutáveis (ex.: `AsyncValue`, `StateNotifier`, etc.).
+- **Service** isola a orquestração de endpoints e regras de negócio simples (paginação, filtros).
+- **ApiClient** concentra a comunicação HTTP e tratamento de falhas (timeouts, códigos 4xx/5xx).
 
 ---
 
@@ -150,125 +208,5 @@ Base URL: `https://rickandmortyapi.com/api`
 
 ---
 
-## 🧩 Dependências explicadas
-- **dio**: cliente HTTP com interceptors, cancelamento, timeouts. Base para todos os serviços REST.
-- **flutter_riverpod**: providers imutáveis, testáveis, sem necessidade de BuildContext para leitura de estado.
-- **go_router**: rotas com declaratividade e deep-link, integração com Riverpod se necessário.
-- **cached_network_image**: placeholder, cache e retry para imagens remotas.
-- **flutter_lints**: conjunto oficial de boas práticas; roda com `dart analyze`.
 
 
----
-
-## 🎯 Estilo de código & qualidade
-- **Format**: `dart format .`
-- **Analyze**: `dart analyze`
-- **Lints**: `flutter_lints` (personalize em `analysis_options.yaml` se desejar)
-
-Sugestão de `analysis_options.yaml` mínima:
-```yaml
-include: package:flutter_lints/flutter.yaml
-linter:
-  rules:
-    prefer_final_locals: true
-    always_use_package_imports: true
-    avoid_print: true
-```
-
----
-
-## 🐛 Troubleshooting
-- **Versão do SDK/Dart incompatível**
-  - Sintoma: erros de linguagem/compatibilidade.
-  - Ação: `flutter --version` (garanta Dart >= 3.7); atualize com `flutter upgrade`.
-
-- **Dispositivo não aparece no `flutter devices`**
-  - Android: habilite *USB debugging*, aceite a autorização ADB.
-  - iOS: abra o simulator pelo Xcode ou `open -a Simulator`.
-
-- **Erro de CocoaPods (iOS)**
-  - Rode `cd ios && pod repo update && pod install && cd -`.
-
-- **Falha ao carregar imagens**
-  - Verifique rede e URLs da API; em web, cheque CORS no DevTools.
-
----
-
-## 📁 Estrutura sugerida (exemplo)
-```
-lib/
-  core/
-    api_client.dart
-    utils.dart
-  features/
-    characters/
-      data/
-      presentation/
-      controllers/
-    episodes/
-      data/
-      presentation/
-      controllers/
-    locations/
-      data/
-      presentation/
-      controllers/
-  routing/
-    app_router.dart
-main.dart
-```
-
----
-
-## 🧭 Roadmap sugerido
-- [ ] Tela de busca/filtro avançado
-- [ ] Paginação com *infinite scroll*
-- [ ] Favoritos offline (Hive/Drift)
-- [ ] Dark mode total + theming customizado
-
----
-
-## 📝 Licença
-Projeto de estudo/demonstração. Por Thainara Christina Onofre
-
----
-
----
-
-## ✅ Checklist de primeira execução
-- [ ] `flutter --version` mostra Dart >= 3.7
-- [ ] `flutter doctor -v` sem pendências críticas
-- [ ] `flutter pub get` finalizado
-- [ ] Dispositivo ativo (`flutter devices`)
-- [ ] `flutter run -d <alvo>` ok
-
-
-***
-
-<h2 align="center">Arquitetura – visão geral</h2>
-
-
-````mermaid
-flowchart TD
-    A((Start)) --> B["CharactersPage aberta (/characters)"]
-    B --> C["CharactersController.refresh()"]
-    C --> D["CharacterService.fetchCharacters(page=1,\nname/status/gender)"]
-    D --> E["ApiClient GET /character?page=1&..."]
-    E --> F{"200 OK?"}
-    F -- Não --> G["ErrorRetry (mostrar erro)"]
-    G -->|Retry| C
-    F -- Sim --> H["PaginatedResponse(info, results)"]
-    H --> I["state = AsyncValue.data(List<Character>)"]
-    I --> J["ListView exibe cards"]
-    J --> K{"Scroll ~final?"}
-    K -- Sim --> L["CharactersController.loadMore()"]
-    L --> M["fetchCharacters(page=n+1,\nmesmos filtros)"]
-    M --> E
-    K -- Não --> N[/"User interage (digita nome,\nchips de status/gender,\npressiona Apply)"/]
-    N --> O["applyFilters(CharacterQuery)\n-> refresh() com novos filtros"]
-    O --> D
-    J --> P{Tap no card?}
-    P -- Sim --> Q["GoRouter: /characters/detail/:id"]
-    P -- Não --> J
-    Q --> R((Stop))
-````
